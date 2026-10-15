@@ -1,0 +1,9 @@
+// Enumerate free hexominoes modulo the eight symmetries of the square.
+const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+const neg=a=>a.map(x=>-x);
+function canonical(cells){return Array.from({length:8},(_,k)=>{let p=cells.map(([x,y])=>{if(k&4)x=-x;for(let i=0;i<(k&3);i++)[x,y]=[-y,x];return [x,y]});const mx=Math.min(...p.map(p=>p[0])),my=Math.min(...p.map(p=>p[1]));return p.map(([x,y])=>[x-mx,y-my]).sort((a,b)=>a[0]-b[0]||a[1]-b[1]).map(p=>p.join(',')).join(';')}).sort()[0]}
+export function foldTree(cells){const nodes=[{cell:cells[0],parent:-1,u:[1,0,0],v:[0,1,0],n:[0,0,1],dir:[0,0]}],seen=new Set([cells[0].join(',')]);for(let i=0;i<nodes.length;i++){const a=nodes[i];for(const [dx,dy] of dirs){const cell=[a.cell[0]+dx,a.cell[1]+dy],key=cell.join(',');if(seen.has(key)||!cells.some(c=>c.join(',')===key))continue;seen.add(key);let u=a.u,v=a.v,n;if(dx){u=dx===1?neg(a.n):a.n;n=dx===1?a.u:neg(a.u)}else{v=dy===1?neg(a.n):a.n;n=dy===1?a.v:neg(a.v)}nodes.push({cell,parent:i,u,v,n,dir:[dx,dy]})}}return nodes}
+export function enumerateNets(){let shapes=new Map([['0,0',[[0,0]]]]);for(let size=2;size<=6;size++){let next=new Map();for(const cells of shapes.values())for(const [x,y] of cells)for(const [dx,dy] of dirs){let p=[x+dx,y+dy];if(cells.some(c=>c[0]===p[0]&&c[1]===p[1]))continue;let key=canonical([...cells,p]);next.set(key,key.split(';').map(p=>p.split(',').map(Number)))}shapes=next}return [...shapes.values()].filter(c=>new Set(foldTree(c).map(n=>n.n.join(','))).size===6)}
+export const cubeNets=enumerateNets();
+const extent=(axis,d)=>axis.reduce((s,v,i)=>s+Math.abs(v)*d[i],0);
+export function netLayout(cells,dimensions){const nodes=foldTree(cells);for(const n of nodes){n.width=extent(n.u,dimensions);n.height=extent(n.v,dimensions);if(n.parent<0){n.x=0;n.y=0}else{const p=nodes[n.parent];n.x=p.x+n.dir[0]*(p.width+n.width)/2;n.y=p.y+n.dir[1]*(p.height+n.height)/2}}return nodes}

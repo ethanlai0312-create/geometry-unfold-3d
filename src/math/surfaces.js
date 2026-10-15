@@ -1,0 +1,7 @@
+export const TAU=Math.PI*2;
+// Isometric cylindrical bending: arc length s and height v are intrinsic coordinates.
+export function cylinderPoint(s,v,r,t){const k=(1-t)/r;if(k<1e-7)return [s,v,0];return [Math.sin(k*s)/k,v,(1-Math.cos(k*s))/k]}
+// Conical isometry: ds²+s²dφ² for every q. q=r/l at closure; q=1 in the plane.
+export function conePoint(s,phi,r,h,t){const l=Math.hypot(r,h),q=r/l+(1-r/l)*t;return [s*q*Math.sin(phi/q),s*q*Math.cos(phi/q),s*Math.sqrt(Math.max(0,1-q*q))]}
+export function spherePoint(lat,lon,r){return [r*Math.cos(lat)*Math.sin(lon),r*Math.sin(lat),r*Math.cos(lat)*Math.cos(lon)]}
+export function spherePatch(mode,i,r){if(mode===0){const n=12,w=TAU*r/n;return {nu:8,nv:32,map:(u,v,t)=>{let lat=(v-.5)*Math.PI,lon=(i+u)*TAU/n,p=spherePoint(lat,lon,r),f=[(i-5.5)*(w+.08*r)+(u-.5)*w*Math.cos(lat),r*lat,0];return p.map((x,j)=>x*(1-t)+f[j]*t)}}}if(mode===1){const n=8,w=TAU*r/n,top=i<n,idx=i%n;return {nu:10,nv:20,map:(u,v,t)=>{let lat=(top?1:-1)*v*Math.PI/2,lon=(idx+u)*TAU/n,p=spherePoint(lat,lon,r),f=[(idx-3.5)*(w+.1*r)+(u-.5)*w*Math.cos(lat),(top?1:-1)*(.12*r+r*Math.abs(lat)),0];return p.map((x,j)=>x*(1-t)+f[j]*t)}}}const n=8,low=-Math.PI/2+i*Math.PI/n,mid=low+Math.PI/n/2;return {nu:64,nv:4,map:(u,v,t)=>{let lat=low+v*Math.PI/n,lon=(u-.5)*TAU,p=spherePoint(lat,lon,r),f=[r*lon*Math.cos(mid),(i-3.5)*(Math.PI*r/n+.12*r)+(v-.5)*Math.PI*r/n,0];return p.map((x,j)=>x*(1-t)+f[j]*t)}}}
