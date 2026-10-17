@@ -1,0 +1,41 @@
+<!doctype html><html lang="zh-Hant"><meta charset="utf-8"><title>幾何渲染驗證</title>
+<style>body{font:16px system-ui;margin:24px;background:#fff;color:#172033}#stage{width:960px;height:540px;max-width:100%}pre{white-space:pre-wrap}</style>
+<h1>幾何渲染驗證</h1><div id="stage"></div><pre id="results">執行中…</pre>
+<script type="module">
+import {Stage} from '/src/scene.js';
+import {sphereShader} from '/src/sphere-shader.js';
+import {sphereDetail,spherePatch} from '/src/math/surfaces.js';
+const result=document.querySelector('#results'),report=[];
+try {
+ const stage=new Stage(document.querySelector('#stage'));stage.grid.visible=false;
+ const gl=stage.renderer.getContext();
+ // Transform feedback compares the real GPU vertex formula with the CPU geometry oracle.
+ const vs=gl.createShader(gl.VERTEX_SHADER),fs=gl.createShader(gl.FRAGMENT_SHADER);
+ gl.shaderSource(vs,'#version 300 es\nprecision highp float;\n'+sphereShader.replaceAll('attribute ','in ').replaceAll('varying ','out ')+'\nout vec3 measured;void main(){measured=surface(patchUV);gl_Position=vec4(measured,1.0);}');gl.compileShader(vs);
+ gl.shaderSource(fs,'#version 300 es\nprecision highp float;out vec4 color;void main(){color=vec4(1.0);}');gl.compileShader(fs);
+ if(!gl.getShaderParameter(vs,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(vs));
+ const program=gl.createProgram();gl.attachShader(program,vs);gl.attachShader(program,fs);gl.transformFeedbackVaryings(program,['measured'],gl.INTERLEAVED_ATTRIBS);gl.linkProgram(program);
+ if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));
+ const vao=gl.createVertexArray(),input=gl.createBuffer(),output=gl.createBuffer(),feedback=gl.createTransformFeedback();
+ gl.bindVertexArray(vao);gl.useProgram(program);const attr=gl.getAttribLocation(program,'patchUV');gl.enableVertexAttribArray(attr);gl.bindBuffer(gl.ARRAY_BUFFER,input);gl.vertexAttribPointer(attr,3,gl.FLOAT,false,0,0);
+ let maxError=0,cases=0,maxCase;
+ for(const n of [8,64,1024])for(let mode=0;mode<3;mode++)for(const t of [0,.001,.2,.35,.5,.85,.9999,1]){
+  const uv=[];for(const i of [0,1,n/2,n-1])for(const u of [0,.5,1])for(const v of [0,.01,.5,1])uv.push(u,v,i);
+  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(uv),gl.STATIC_DRAW);gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER,output);gl.bufferData(gl.TRANSFORM_FEEDBACK_BUFFER,uv.length*4,gl.STREAM_READ);
+  gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK,feedback);gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER,0,output);
+  for(const [name,value] of Object.entries({unfold:t,sphereRadius:1,sphereMode:mode,pieceCount:n}))gl.uniform1f(gl.getUniformLocation(program,name),value);
+  gl.enable(gl.RASTERIZER_DISCARD);gl.beginTransformFeedback(gl.POINTS);gl.drawArrays(gl.POINTS,0,uv.length/3);gl.endTransformFeedback();gl.disable(gl.RASTERIZER_DISCARD);
+  const actual=new Float32Array(uv.length);gl.getBufferSubData(gl.TRANSFORM_FEEDBACK_BUFFER,0,actual);
+  for(let j=0;j<uv.length;j+=3){const expected=spherePatch(mode,uv[j+2],1,sphereDetail(n)).map(uv[j],uv[j+1],t);for(let k=0;k<3;k++){const error=Math.abs(expected[k]-actual[j+k]);if(!Number.isFinite(error))throw Error('non-finite GPU position');if(error>maxError){maxError=error;maxCase={n,mode,t,u:uv[j],v:uv[j+1],piece:uv[j+2],k,expected:expected[k],actual:actual[j+k]}}}cases++}
+ }
+ gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK,null);gl.bindVertexArray(null);gl.deleteTransformFeedback(feedback);gl.deleteBuffer(input);gl.deleteBuffer(output);gl.deleteVertexArray(vao);gl.deleteProgram(program);gl.deleteShader(vs);gl.deleteShader(fs);stage.renderer.resetState();
+ if(maxError>.0002)throw Error('GPU position error '+maxError+' '+JSON.stringify(maxCase));
+ report.push(`GPU／CPU 位置比對：${cases} 點通過；最大誤差 ${maxError.toFixed(7)}`);
+ for(let mode=0;mode<3;mode++){
+  stage.set('sphere',mode,{r:1.5,segments:1024});const timing=[];
+  for(let i=0;i<40;i++){let start=performance.now();stage.update(.13+i*.021);stage.render();gl.finish();if(i>2)timing.push(performance.now()-start)}
+  timing.sort((a,b)=>a-b);report.push(`1024 片方案 ${mode+1}：更新＋繪製平均 ${(timing.reduce((a,b)=>a+b)/timing.length).toFixed(2)} ms；P95 ${timing[Math.floor(timing.length*.95)].toFixed(2)} ms；模型繪製 ${stage.renderer.info.render.calls} 次`);
+ }
+ stage.update(1);stage.render();result.textContent='PASS\n'+report.join('\n');
+}catch(error){result.textContent='FAIL\n'+error.stack;console.error(error)}
+</script></html>

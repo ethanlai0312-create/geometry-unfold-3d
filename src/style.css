@@ -10,3 +10,5 @@ button:active{transform:translateY(1px)}
 button.primary{border-color:#203f55;box-shadow:0 2px 5px #203f5518}
 .speed select{border:1px solid #a9bdcb;background:#fff}
 @media(max-width:760px){.help{padding:7px 8px}.brand-sub{display:none}.explanation button{padding:8px 12px}}
+
+.detail-note{font-size:12px;line-height:1.7;color:#64748b;margin:10px 0 0}

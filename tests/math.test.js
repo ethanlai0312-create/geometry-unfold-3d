@@ -15,7 +15,7 @@ import {SPHERE_DETAIL} from '../src/math/surfaces.js';
 test('all sphere detail levels retain radius, finite animation and planar endpoints',()=>{
  for(const detail of SPHERE_DETAIL)for(let mode=0;mode<3;mode++){
   const m=createModel('sphere',mode,{r:2},detail);
-  assert.equal(m.group.children.filter(o=>o.isMesh).length,detail.counts[mode]);
+  assert.equal(m.group.userData.pieceCount,detail.counts[mode]);
   for(const t of [0,.37,1,0]){m.update(t);m.group.traverse(o=>{if(!o.isMesh)return;const a=o.geometry.attributes.position;
    for(let i=0;i<a.count;i++){const x=a.getX(i),y=a.getY(i),z=a.getZ(i);assert.ok(Number.isFinite(x+y+z));if(t===0)near(Math.hypot(x,y,z),2);if(t===1)near(z,0)}
    assert.ok([...o.geometry.attributes.normal.array].every(Number.isFinite));
