@@ -19,17 +19,21 @@ vec3 petal(float u,float v,float t,float n,float i,float span){
 }
 vec3 surface(vec3 uv){
  float u=uv.x,v=uv.y,i=uv.z,t=unfold,r=sphereRadius;
- if(sphereMode<.5)return petal(u,v,t,pieceCount,i,PI);
- if(sphereMode<1.5){
+ vec3 result=vec3(0.0);
+ if(sphereMode<.5){result=petal(u,v,t,pieceCount,i,PI);}
+ else if(sphereMode<1.5){
   float n=pieceCount*.5,bend=ease((t-.35)/.65),idx=mod(i,n);
   vec3 p=petal(u,v,bend,n,idx,PI*.5);
-  if(i<n)return p;
-  if(t<=.35){float a=-PI*ease(t/.35),x=p.x-r,z=-p.z;return vec3(r+x*cos(a)+z*sin(a),p.y,-x*sin(a)+z*cos(a));}
-  float k=(1.0-bend)/r,edge=PI*r*.5*sinc(k*PI*r*.5);
-  return vec3(2.0*edge-p.x,p.y,p.z);
+  result=p;
+  if(i>=n){
+   if(t<=.35){float a=-PI*ease(t/.35),x=p.x-r,z=-p.z;result=vec3(r+x*cos(a)+z*sin(a),p.y,-x*sin(a)+z*cos(a));}
+   else {float k=(1.0-bend)/r,edge=PI*r*.5*sinc(k*PI*r*.5);result=vec3(2.0*edge-p.x,p.y,p.z);}
+  }
+ }else{
+  float lat=-PI*.5+(i+v)*PI/pieceCount,lon=(u-.5)*2.0*PI,a=1.0-t,R=r*cos(lat);
+  result=vec3(R*lon*sinc(a*lon),(1.0-t)*r*sin(lat)+t*r*lat,R*a*(1.0-.5*lon*lon*pow(sinc(a*lon*.5),2.0)));
  }
- float lat=-PI*.5+(i+v)*PI/pieceCount,lon=(u-.5)*2.0*PI,a=1.0-t,R=r*cos(lat);
- return vec3(R*lon*sinc(a*lon),(1.0-t)*r*sin(lat)+t*r*lat,R*a*(1.0-.5*lon*lon*pow(sinc(a*lon*.5),2.0)));
+ return result;
 }
 `;
 
